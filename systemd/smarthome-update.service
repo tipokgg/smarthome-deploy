@@ -1,0 +1,10 @@
+[Unit]
+Description=smarthome: обновление образов из GHCR
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/smarthome
+ExecStart=/opt/smarthome/scripts/update.sh

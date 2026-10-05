@@ -1,0 +1,7 @@
+[Unit]
+Description=smarthome: ночная копия базы
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/smarthome
+ExecStart=/opt/smarthome/scripts/backup.sh nightly

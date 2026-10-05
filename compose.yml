@@ -1,0 +1,44 @@
+# Умный дом на домашнем сервере. Образы и их версии - в .env (BACKEND_IMAGE, FRONTEND_IMAGE),
+# их переключает scripts/update.sh. Секреты бэкенда - в config/application.yml, база - в data/.
+name: smarthome
+
+x-logging: &logging
+  driver: local
+  options:
+    max-size: 10m
+    max-file: "5"
+
+services:
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE не задан в .env}
+    restart: unless-stopped
+    environment:
+      # тарифы день/ночь, расписания и история считаются по местному времени
+      TZ: Europe/Moscow
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/data
+    # здесь, а не в образе: по нему scripts/update.sh решает, поднялась ли новая версия, и проверка не должна
+    # зависеть от того, что в образе
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      start_interval: 3s
+      retries: 3
+    logging: *logging
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE не задан в .env}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      start_interval: 2s
+      retries: 3
+    logging: *logging

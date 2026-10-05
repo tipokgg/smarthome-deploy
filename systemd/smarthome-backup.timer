@@ -1,0 +1,9 @@
+[Unit]
+Description=smarthome: ночная копия базы в 03:30
+
+[Timer]
+OnCalendar=*-*-* 03:30
+Persistent=true
+
+[Install]
+WantedBy=timers.target
