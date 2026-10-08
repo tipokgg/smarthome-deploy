@@ -3,3 +3,6 @@ config/application.yml
 data/
 backups/
 state/
+config/router_ed25519
+config/router_ed25519.pub
+config/router_known_hosts

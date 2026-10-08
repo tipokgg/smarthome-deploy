@@ -16,6 +16,7 @@
   compose.yml
   .env                     запущенные образы, настройки обновления, Telegram (не в git)
   config/application.yml   секреты бэкенда (не в git)
+  config/router_ed25519    ключ для SSH к роутеру OpenWrt (мониторинг сети) и его known_hosts (не в git)
   data/smarthome.db        база SQLite (не в git)
   backups/nightly          ночные копии, 30 штук
   backups/pre-update       копии перед обновлением бэкенда, 10 штук
@@ -53,6 +54,9 @@
 5. Секреты: `config/application.yml` с Мака (`~/smarthome/backend/config/application.yml`) положить в
    `/opt/smarthome/config/` и выставить `sudo chown 1000:1000 config/application.yml && sudo chmod 600 config/application.yml`.
    При желании вписать в `.env` бота для уведомлений: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+
+6. Мониторинг сети: ключ для SSH к роутеру OpenWrt в `config/router_ed25519` и `config/router_known_hosts`,
+   скрипт на роутере — см. `router/README.md`. Без них вкладка «Сеть» работает, но без состояния роутера.
 
 ## Переезд с Мака
 
