@@ -18,7 +18,7 @@ flock -n 9 || exit 0
 update_service() {
   local service=$1 prefix=$2
   local image_var=${prefix}_IMAGE track_var=${prefix}_TRACK
-  local current=${!image_var} track=${!track_var}
+  local current=${!image_var:-} track=${!track_var}
 
   if ! docker pull -q "$track" > /dev/null; then
     log "$service: не удалось скачать $track"
@@ -66,3 +66,7 @@ update_service() {
 
 update_service frontend FRONTEND
 update_service backend BACKEND
+# мост к телевизорам; в .env, заведённом до него, переменных нет - тогда не трогаем
+if [[ -n "${TV_BRIDGE_TRACK:-}" ]]; then
+  update_service tv-bridge TV_BRIDGE
+fi

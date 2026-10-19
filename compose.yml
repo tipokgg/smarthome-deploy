@@ -18,6 +18,8 @@ services:
       # бот для уведомлений о сбоях устройств и автоматизаций - тот же, что у scripts/update.sh
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      # мост к телевизорам Android TV - сервис ниже
+      TV_BRIDGE_URL: http://tv-bridge:8090
     volumes:
       - ./config:/app/config:ro
       - ./data:/data
@@ -29,6 +31,23 @@ services:
       timeout: 5s
       start_period: 90s
       start_interval: 3s
+      retries: 3
+    logging: *logging
+
+  # мост к телевизорам Android TV по протоколу пульта Google TV (исходник - smarthome-backend/tv-bridge).
+  # Наружу порт не открыт: ходит к нему только бэкенд. В data/tv-bridge - сертификат, который телевизоры
+  # запомнили при сопряжении: потеряется - сопрягать заново
+  tv-bridge:
+    image: ${TV_BRIDGE_IMAGE:-ghcr.io/tipokgg/smarthome-tv-bridge:main}
+    restart: unless-stopped
+    volumes:
+      - ./data/tv-bridge:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      start_interval: 2s
       retries: 3
     logging: *logging
 

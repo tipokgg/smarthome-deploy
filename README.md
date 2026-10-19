@@ -3,11 +3,12 @@
 Запуск умного дома на домашнем сервере (Ubuntu Server, Docker Compose) и автообновление.
 
 - `smarthome-backend` и `smarthome-frontend` на push в `main` собирают образы и кладут их в GHCR
-  (`ghcr.io/tipokgg/smarthome-*`, теги `main` и `sha-<коммит>`).
+  (`ghcr.io/tipokgg/smarthome-*`, теги `main` и `sha-<коммит>`). Репозиторий бэкенда собирает ещё и мост к телевизорам
+  `smarthome-tv-bridge` (из папки `tv-bridge`).
 - На сервере таймер `smarthome-update.timer` раз в 2 минуты запускает `scripts/update.sh`. Если у тега `main` новый образ,
   скрипт переключает на него сервис и ждёт healthcheck. Перед обновлением бэкенда он делает копию базы.
   Новая версия не поднялась: скрипт откатывает образ и базу, а сломанный образ запоминает в `state/failed` и больше не ставит.
-- Какие образы запущены, записано в `.env` (`BACKEND_IMAGE`, `FRONTEND_IMAGE`, по digest). После перезагрузки
+- Какие образы запущены, записано в `.env` (`BACKEND_IMAGE`, `FRONTEND_IMAGE`, `TV_BRIDGE_IMAGE`, по digest). После перезагрузки
   поднимется ровно то, что там записано.
 - Входящих подключений к серверу не нужно, от GitHub ему нужен только токен на чтение пакетов.
 
@@ -18,6 +19,7 @@
   config/application.yml   секреты бэкенда (не в git)
   config/router_ed25519    ключ для SSH к роутеру OpenWrt (мониторинг сети) и его known_hosts (не в git)
   data/smarthome.db        база SQLite (не в git)
+  data/tv-bridge/          сертификат моста к телевизорам: его помнят сопряжённые ТВ (не в git)
   backups/nightly          ночные копии, 30 штук
   backups/pre-update       копии перед обновлением бэкенда, 10 штук
   state/                   блокировка и список сломанных образов
@@ -70,12 +72,32 @@
 4. Проверить интерфейс на `http://<сервер>/`.
 5. Включить автообновление: `sudo systemctl enable --now smarthome-update.timer`.
 
+## Телевизоры (tv-bridge)
+
+Мост держит соединение с телевизорами Android TV по протоколу пульта Google TV (порты 6466/6467 телевизора), бэкенд ходит
+к нему по `http://tv-bridge:8090`. Наружу порт не открыт. Какие телевизоры есть, задаёт бэкенд (`tv.devices`).
+
+Подключить на уже работающем сервере (до этого моста не было):
+
+```bash
+cd /opt/smarthome && sudo git pull
+sudo install -d -o 1000 -g 1000 data/tv-bridge
+echo 'TV_BRIDGE_IMAGE=ghcr.io/tipokgg/smarthome-tv-bridge:main' | sudo tee -a .env
+echo 'TV_BRIDGE_TRACK=ghcr.io/tipokgg/smarthome-tv-bridge:main' | sudo tee -a .env
+sudo docker compose up -d --wait
+```
+
+Сопряжение — один раз на телевизор, на странице «ТВ»: «Сопрячь», телевизор показывает 6 символов, их ввести там же.
+Сертификат лежит в `data/tv-bridge` (в ночные копии не попадает): если его потерять, сопрягать заново.
+IP телевизора лучше закрепить на роутере: бэкенд знает телевизор по адресу из `tv.devices`.
+
 ## Каждый день
 
 | Что | Команда (в `/opt/smarthome`) |
 |---|---|
 | состояние | `sudo docker compose ps` |
 | логи бэкенда | `sudo docker compose logs -f --tail 200 backend` |
+| логи моста к телевизорам | `sudo docker compose logs -f --tail 200 tv-bridge` |
 | журнал обновлений | `journalctl -u smarthome-update -n 50` |
 | запустить проверку обновлений сейчас | `sudo systemctl start smarthome-update` |
 | копия базы сейчас | `sudo scripts/backup.sh nightly` |
