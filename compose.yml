@@ -51,6 +51,23 @@ services:
       retries: 3
     logging: *logging
 
+  # Камеры: go2rtc забирает RTSP с камер и отдаёт видео браузеру через nginx фронта (/camera/ws). Какие камеры есть -
+  # go2rtc.yaml рядом. Наружу порт не открыт: API go2rtc без авторизации и умеет запускать команды. Версия закреплена,
+  # scripts/update.sh её не обновляет
+  go2rtc:
+    image: ${GO2RTC_IMAGE:-alexxit/go2rtc:1.9.14}
+    restart: unless-stopped
+    volumes:
+      - ./go2rtc.yaml:/config/go2rtc.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:1984/api"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      start_interval: 2s
+      retries: 3
+    logging: *logging
+
   frontend:
     image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE не задан в .env}
     restart: unless-stopped
