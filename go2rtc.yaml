@@ -10,9 +10,13 @@ webrtc:
   listen: ""
 
 streams:
-  # Двор: Hipcam 192.168.10.173 (ONVIF на 8080), с 07.11.2026 в H.264 (было H.265), ключевой кадр раз в 2 с.
-  # Напрямую (rtsp://…) Chrome его не показывает: камера кладёт в sprop-parameter-sets SDP стартовые коды
-  # `00 00 00 01`, и профиль кодека читается как 0 («Unrecognized video codec profile»). ffmpeg без перекодирования
-  # (copy) пересобирает поток с правильными параметрами: ~1% ядра, запускается, только пока кто-то смотрит
-  yard: ffmpeg:rtsp://192.168.10.173:554/11#video=copy#audio=copy
-  yard_sub: ffmpeg:rtsp://192.168.10.173:554/12#video=copy#audio=copy
+  # Двор: Hipcam 192.168.10.173 (ONVIF на 8080), с 07.11.2026 в H.264.
+  # - Напрямую (rtsp://…) Chrome его не показывает: камера кладёт в sprop-parameter-sets SDP стартовые коды
+  #   `00 00 00 01`, профиль кодека читается как 0 («Unrecognized video codec profile»). ffmpeg без перекодирования
+  #   (-c copy) пересобирает поток с правильными параметрами: ~1% ядра, запускается, только пока кто-то смотрит.
+  # - Ключевой кадр камера шлёт раз в 108 кадров (~8,6 с) - «Интервал» в веб-интерфейсе и GovLength в ONVIF
+  #   на это не влияют, - и ещё один в начале каждого подключения. Обычный источник `ffmpeg:` сначала ~3 с изучает
+  #   поток и часто теряет этот первый кадр: тогда картинка через ~10 с. Без изучения (-analyzeduration 0, параметры
+  #   кодека и так есть в SDP) первый кадр доходит: картинка через ~2 с (замер 07.11.2026)
+  yard: exec:ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -analyzeduration 0 -probesize 32 -rtsp_transport tcp -i rtsp://192.168.10.173:554/11 -c copy -f rtsp {output}
+  yard_sub: exec:ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -analyzeduration 0 -probesize 32 -rtsp_transport tcp -i rtsp://192.168.10.173:554/12 -c copy -f rtsp {output}
