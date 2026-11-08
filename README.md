@@ -113,6 +113,22 @@ ffmpeg запускается без изучения потока (`-analyzedur
 Если на камере включить пароль RTSP, адрес в `go2rtc.yaml` станет `rtsp://<логин>:<пароль>@…` — тогда этот файл
 переезжает в `config/` (не в git) и монтируется оттуда.
 
+## Газета (Gotenberg и принтер)
+
+Утренняя газета собирается бэкендом в 06:30 (страница «Газета»). PDF печатает `gotenberg` — Chromium в контейнере:
+он открывает страницу выпуска у бэкенда (`http://backend:8080/api/newspaper/<дата>`, шрифты — там же) и ходить может
+только туда (`--chromium-allow-list`). Принтер Xerox Phaser 3020 (`192.168.10.28`, IPP) PDF не принимает: бэкенд
+растрирует PDF в Apple Raster 600 dpi и отправляет заданием IPP. Образ закреплён на версии (`GOTENBERG_IMAGE` в `.env`),
+`scripts/update.sh` его не обновляет. Автопечать после сборки — `NEWSPAPER_AUTO_PRINT=true` у бэкенда (по умолчанию
+выключена), адрес принтера — `NEWSPAPER_PRINTER_URI`.
+
+Подключить на уже работающем сервере:
+
+```bash
+cd /opt/smarthome && sudo git pull
+sudo docker compose up -d --wait gotenberg
+```
+
 ## Каждый день
 
 | Что | Команда (в `/opt/smarthome`) |
@@ -121,6 +137,7 @@ ffmpeg запускается без изучения потока (`-analyzedur
 | логи бэкенда | `sudo docker compose logs -f --tail 200 backend` |
 | логи моста к телевизорам | `sudo docker compose logs -f --tail 200 tv-bridge` |
 | логи go2rtc (камеры) | `sudo docker compose logs -f --tail 200 go2rtc` |
+| логи Gotenberg (PDF газеты) | `sudo docker compose logs -f --tail 200 gotenberg` |
 | журнал обновлений | `journalctl -u smarthome-update -n 50` |
 | запустить проверку обновлений сейчас | `sudo systemctl start smarthome-update` |
 | копия базы сейчас | `sudo scripts/backup.sh nightly` |

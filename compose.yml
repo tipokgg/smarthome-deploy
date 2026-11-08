@@ -68,6 +68,25 @@ services:
       retries: 3
     logging: *logging
 
+  # PDF утренней газеты: Chromium печатает страницу выпуска, бэкенд растрирует PDF для принтера (Xerox Phaser 3020
+  # понимает только Apple Raster). Наружу порт не открыт; ходить Chromium может только к бэкенду - за страницей
+  # и шрифтами. LibreOffice не нужен. Версия закреплена, scripts/update.sh её не обновляет
+  gotenberg:
+    image: ${GOTENBERG_IMAGE:-gotenberg/gotenberg:8.40.0}
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --chromium-allow-list=^http://backend:8080(/|$$)
+      - --libreoffice-disable-routes
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      start_interval: 2s
+      retries: 3
+    logging: *logging
+
   frontend:
     image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE не задан в .env}
     restart: unless-stopped
