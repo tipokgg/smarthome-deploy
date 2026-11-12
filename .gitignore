@@ -6,3 +6,8 @@ state/
 config/router_ed25519
 config/router_ed25519.pub
 config/router_known_hosts
+
+# ESPHome: пароли и кэш сборки
+esphome/secrets.yaml
+esphome/.esphome/
+esphome/backup/

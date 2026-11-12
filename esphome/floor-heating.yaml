@@ -1,0 +1,184 @@
+# KinCony KC868-A8 у гребёнки тёплого пола 1 этажа.
+#
+# Реле 1–7 управляют сервоприводами Zeissler M315NO (нормально открытые):
+#   реле ВЫКЛ → привод обесточен → контур ОТКРЫТ (греет),
+#   реле ВКЛ  → контур закрывается примерно за 3 минуты.
+# Поэтому всё, что идёт не так (перезагрузка, нет связи с сервером), сводится к «все реле выключены» —
+# тёплый пол просто греет, как без автоматики.
+#
+# Защиты в прошивке (не зависят от бэкенда):
+#   - нельзя закрыть все 7 контуров разом — насос коллектора не должен работать в закрытую систему;
+#   - если сервер дольше ${watchdog_minutes} мин не жмёт кнопку heartbeat, все контуры открываются.
+#
+# Управление — REST API web_server: POST /switch/<name>/turn_on|turn_off, GET /switch/<name>.
+#
+# Прошивка: esphome run floor-heating.yaml (первый раз по USB, дальше по сети).
+
+substitutions:
+  name: floor-heating
+  watchdog_minutes: "15"
+
+esphome:
+  name: ${name}
+  friendly_name: Тёплый пол 1 этаж
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk:
+    pin: GPIO17
+    mode: CLK_OUT
+  phy_addr: 0
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+web_server:
+  port: 80
+  version: 3
+
+i2c:
+  sda: GPIO4
+  scl: GPIO5
+
+pcf8574:
+  - id: relays_hub
+    address: 0x24
+
+globals:
+  - id: last_heartbeat
+    type: uint32_t
+    initial_value: "0"
+
+button:
+  - platform: template
+    id: heartbeat
+    name: Heartbeat
+    on_press:
+      - lambda: id(last_heartbeat) = millis();
+
+  - platform: restart
+    name: Restart
+
+interval:
+  - interval: 1min
+    then:
+      - if:
+          condition:
+            lambda: |-
+              bool anyClosed = id(loop_1).state || id(loop_2).state || id(loop_3).state || id(loop_4).state
+                  || id(loop_5).state || id(loop_6).state || id(loop_7).state;
+              return anyClosed && millis() - id(last_heartbeat) > ${watchdog_minutes} * 60UL * 1000UL;
+          then:
+            - logger.log:
+                level: WARN
+                format: "Нет связи с сервером дольше ${watchdog_minutes} мин — открываю все контуры"
+            - script.execute: open_all_loops
+
+script:
+  - id: open_all_loops
+    then:
+      - switch.turn_off: loop_1
+      - switch.turn_off: loop_2
+      - switch.turn_off: loop_3
+      - switch.turn_off: loop_4
+      - switch.turn_off: loop_5
+      - switch.turn_off: loop_6
+      - switch.turn_off: loop_7
+
+  # Вызывается после включения любого реле контура: если закрыты все 7, тот, что закрыли последним, открывается обратно.
+  # Термоприводу нужны минуты, так что короткое срабатывание реле ни на что не влияет.
+  - id: guard_all_closed
+    parameters:
+      last_closed: int
+    then:
+      - lambda: |-
+          bool allClosed = id(loop_1).state && id(loop_2).state && id(loop_3).state && id(loop_4).state
+              && id(loop_5).state && id(loop_6).state && id(loop_7).state;
+          if (!allClosed) {
+            return;
+          }
+          ESP_LOGW("guard", "Нельзя закрыть все контуры — открываю контур %d обратно", last_closed);
+          switch (last_closed) {
+            case 1: id(loop_1).turn_off(); break;
+            case 2: id(loop_2).turn_off(); break;
+            case 3: id(loop_3).turn_off(); break;
+            case 4: id(loop_4).turn_off(); break;
+            case 5: id(loop_5).turn_off(); break;
+            case 6: id(loop_6).turn_off(); break;
+            case 7: id(loop_7).turn_off(); break;
+          }
+
+switch:
+  - platform: gpio
+    id: loop_1
+    name: Loop 1
+    restore_mode: ALWAYS_OFF
+    pin: { pcf8574: relays_hub, number: 0, mode: { output: true }, inverted: true }
+    on_turn_on:
+      - script.execute: { id: guard_all_closed, last_closed: 1 }
+  - platform: gpio
+    id: loop_2
+    name: Loop 2
+    restore_mode: ALWAYS_OFF
+    pin: { pcf8574: relays_hub, number: 1, mode: { output: true }, inverted: true }
+    on_turn_on:
+      - script.execute: { id: guard_all_closed, last_closed: 2 }
+  - platform: gpio
+    id: loop_3
+    name: Loop 3
+    restore_mode: ALWAYS_OFF
+    pin: { pcf8574: relays_hub, number: 2, mode: { output: true }, inverted: true }
+    on_turn_on:
+      - script.execute: { id: guard_all_closed, last_closed: 3 }
+  - platform: gpio
+    id: loop_4
+    name: Loop 4
+    restore_mode: ALWAYS_OFF
+    pin: { pcf8574: relays_hub, number: 3, mode: { output: true }, inverted: true }
+    on_turn_on:
+      - script.execute: { id: guard_all_closed, last_closed: 4 }
+  - platform: gpio
+    id: loop_5
+    name: Loop 5
+    restore_mode: ALWAYS_OFF
+    pin: { pcf8574: relays_hub, number: 4, mode: { output: true }, inverted: true }
+    on_turn_on:
+      - script.execute: { id: guard_all_closed, last_closed: 5 }
+  - platform: gpio
+    id: loop_6
+    name: Loop 6
+    restore_mode: ALWAYS_OFF
+    pin: { pcf8574: relays_hub, number: 5, mode: { output: true }, inverted: true }
+    on_turn_on:
+      - script.execute: { id: guard_all_closed, last_closed: 6 }
+  - platform: gpio
+    id: loop_7
+    name: Loop 7
+    restore_mode: ALWAYS_OFF
+    pin: { pcf8574: relays_hub, number: 6, mode: { output: true }, inverted: true }
+    on_turn_on:
+      - script.execute: { id: guard_all_closed, last_closed: 7 }
+  - platform: gpio
+    id: relay_8
+    name: Relay 8
+    restore_mode: ALWAYS_OFF
+    pin: { pcf8574: relays_hub, number: 7, mode: { output: true }, inverted: true }
+
+sensor:
+  - platform: uptime
+    name: Uptime
+
+text_sensor:
+  - platform: ethernet_info
+    ip_address:
+      name: IP
