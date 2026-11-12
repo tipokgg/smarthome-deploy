@@ -174,9 +174,43 @@ switch:
     restore_mode: ALWAYS_OFF
     pin: { pcf8574: relays_hub, number: 7, mode: { output: true }, inverted: true }
 
+# Входы 1-Wire для DS18B20 (подтяжка 4,7 кОм уже на плате). Какой из них S1–S4 на плате - по разным ревизиям
+# расходится, поэтому слушаем все четыре; на шине по одному датчику - адрес не нужен. Когда станет ясно, куда
+# подключены подача и обратка, лишние входы убрать, а датчикам дать имена.
+one_wire:
+  - platform: gpio
+    id: ow_gpio14
+    pin: GPIO14
+  - platform: gpio
+    id: ow_gpio13
+    pin: GPIO13
+  - platform: gpio
+    id: ow_gpio32
+    pin: GPIO32
+  - platform: gpio
+    id: ow_gpio33
+    pin: GPIO33
+
 sensor:
   - platform: uptime
     name: Uptime
+
+  - platform: dallas_temp
+    one_wire_id: ow_gpio14
+    name: Probe GPIO14
+    update_interval: 30s
+  - platform: dallas_temp
+    one_wire_id: ow_gpio13
+    name: Probe GPIO13
+    update_interval: 30s
+  - platform: dallas_temp
+    one_wire_id: ow_gpio32
+    name: Probe GPIO32
+    update_interval: 30s
+  - platform: dallas_temp
+    one_wire_id: ow_gpio33
+    name: Probe GPIO33
+    update_interval: 30s
 
 text_sensor:
   - platform: ethernet_info
