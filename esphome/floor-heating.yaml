@@ -118,61 +118,63 @@ script:
             case 7: id(loop_7).turn_off(); break;
           }
 
+# Выходы PCF8574 идут к реле в обратном порядке: выход 0 - реле 8 по маркировке на клеммах, выход 7 - реле 1
+# (проверено отвёрткой 15.11.2026). Поэтому у реле N выход 8 - N.
 switch:
   - platform: gpio
     id: loop_1
     name: Loop 1
     restore_mode: ALWAYS_OFF
-    pin: { pcf8574: relays_hub, number: 0, mode: { output: true }, inverted: true }
+    pin: { pcf8574: relays_hub, number: 7, mode: { output: true }, inverted: true }
     on_turn_on:
       - script.execute: { id: guard_all_closed, last_closed: 1 }
   - platform: gpio
     id: loop_2
     name: Loop 2
     restore_mode: ALWAYS_OFF
-    pin: { pcf8574: relays_hub, number: 1, mode: { output: true }, inverted: true }
+    pin: { pcf8574: relays_hub, number: 6, mode: { output: true }, inverted: true }
     on_turn_on:
       - script.execute: { id: guard_all_closed, last_closed: 2 }
   - platform: gpio
     id: loop_3
     name: Loop 3
     restore_mode: ALWAYS_OFF
-    pin: { pcf8574: relays_hub, number: 2, mode: { output: true }, inverted: true }
+    pin: { pcf8574: relays_hub, number: 5, mode: { output: true }, inverted: true }
     on_turn_on:
       - script.execute: { id: guard_all_closed, last_closed: 3 }
   - platform: gpio
     id: loop_4
     name: Loop 4
     restore_mode: ALWAYS_OFF
-    pin: { pcf8574: relays_hub, number: 3, mode: { output: true }, inverted: true }
+    pin: { pcf8574: relays_hub, number: 4, mode: { output: true }, inverted: true }
     on_turn_on:
       - script.execute: { id: guard_all_closed, last_closed: 4 }
   - platform: gpio
     id: loop_5
     name: Loop 5
     restore_mode: ALWAYS_OFF
-    pin: { pcf8574: relays_hub, number: 4, mode: { output: true }, inverted: true }
+    pin: { pcf8574: relays_hub, number: 3, mode: { output: true }, inverted: true }
     on_turn_on:
       - script.execute: { id: guard_all_closed, last_closed: 5 }
   - platform: gpio
     id: loop_6
     name: Loop 6
     restore_mode: ALWAYS_OFF
-    pin: { pcf8574: relays_hub, number: 5, mode: { output: true }, inverted: true }
+    pin: { pcf8574: relays_hub, number: 2, mode: { output: true }, inverted: true }
     on_turn_on:
       - script.execute: { id: guard_all_closed, last_closed: 6 }
   - platform: gpio
     id: loop_7
     name: Loop 7
     restore_mode: ALWAYS_OFF
-    pin: { pcf8574: relays_hub, number: 6, mode: { output: true }, inverted: true }
+    pin: { pcf8574: relays_hub, number: 1, mode: { output: true }, inverted: true }
     on_turn_on:
       - script.execute: { id: guard_all_closed, last_closed: 7 }
   - platform: gpio
     id: relay_8
     name: Relay 8
     restore_mode: ALWAYS_OFF
-    pin: { pcf8574: relays_hub, number: 7, mode: { output: true }, inverted: true }
+    pin: { pcf8574: relays_hub, number: 0, mode: { output: true }, inverted: true }
 
 # Входы 1-Wire для DS18B20 (подтяжка 4,7 кОм уже на плате). Какой из них S1–S4 на плате - по разным ревизиям
 # расходится, поэтому слушаем все четыре; на шине по одному датчику - адрес не нужен. Когда станет ясно, куда
