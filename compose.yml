@@ -20,6 +20,8 @@ services:
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       # мост к телевизорам Android TV - сервис ниже
       TV_BRIDGE_URL: http://tv-bridge:8090
+      # брокер MQTT, через который приходят Zigbee-устройства из zigbee2mqtt; пусто - Zigbee не слушаем
+      ZIGBEE_MQTT_URL: ${ZIGBEE_MQTT_URL:-}
     volumes:
       - ./config:/app/config:ro
       - ./data:/data
@@ -84,6 +86,56 @@ services:
       timeout: 5s
       start_period: 20s
       start_interval: 2s
+      retries: 3
+    logging: *logging
+
+  # Zigbee: координатор SMLIGHT SLZB-06P7U в сети (PoE, Ethernet), zigbee2mqtt ходит к нему по TCP и публикует
+  # устройства в Mosquitto, бэкенд их оттуда слушает. Оба сервиса - в профиле zigbee: запускаются, только когда
+  # в .env есть COMPOSE_PROFILES=zigbee (см. README). Версии закреплены, scripts/update.sh их не обновляет
+
+  # Брокер MQTT. Наружу порт не открыт: без паролей, ходят к нему только zigbee2mqtt и бэкенд
+  mosquitto:
+    image: ${MOSQUITTO_IMAGE:-eclipse-mosquitto:2.0.23}
+    profiles: [zigbee]
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./data/mosquitto:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/version", "-C", "1", "-W", "3"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      start_interval: 2s
+      retries: 3
+    logging: *logging
+
+  # zigbee2mqtt. В data/zigbee2mqtt - configuration.yaml с ключом сети (zigbee2mqtt сам его создаёт при первом запуске
+  # и переписывает файл), база устройств и копия координатора: потеряется - все устройства сопрягать заново.
+  # Веб-интерфейс (сопряжение, карта сети) - http://<сервер>:8099, токен - ZIGBEE2MQTT_FRONTEND_TOKEN из .env
+  zigbee2mqtt:
+    image: ${ZIGBEE2MQTT_IMAGE:-koenkk/zigbee2mqtt:2.14.3}
+    profiles: [zigbee]
+    restart: unless-stopped
+    user: "1000:1000"
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    environment:
+      TZ: Europe/Moscow
+      # переменные ZIGBEE2MQTT_CONFIG_* перекрывают configuration.yaml
+      ZIGBEE2MQTT_CONFIG_SERIAL_PORT: tcp://${ZIGBEE_ADAPTER_HOST:-}:6638
+      ZIGBEE2MQTT_CONFIG_FRONTEND_AUTH_TOKEN: ${ZIGBEE2MQTT_FRONTEND_TOKEN:-}
+    volumes:
+      - ./data/zigbee2mqtt:/app/data
+    ports:
+      - "8099:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      start_interval: 3s
       retries: 3
     logging: *logging
 

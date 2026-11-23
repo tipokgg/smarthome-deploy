@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Копия базы SQLite: backup.sh [nightly|pre-update]. Печатает путь к архиву.
+# Копия базы SQLite (и раз в сутки - данных zigbee2mqtt): backup.sh [nightly|pre-update]. Печатает путь к копии базы.
 # Работающий бэкенд не мешает: .backup делает согласованную копию.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -23,5 +23,12 @@ gzip "$OUT"
 
 # старые копии этого вида
 ls -1t "$DEST"/smarthome-*.db.gz | tail -n +$((KEEP + 1)) | xargs -r rm --
+
+# zigbee2mqtt раз в сутки: ключ сети, база устройств и копия координатора - без них все устройства сопрягать заново.
+# Файлы маленькие, копия идёт рядом с базой; путь не печатается - stdout читает scripts/update.sh
+if [[ "$KIND" == nightly && -f data/zigbee2mqtt/configuration.yaml ]]; then
+  tar -czf "$DEST/zigbee2mqtt-$(date +%Y%m%d-%H%M%S).tar.gz" -C data --exclude zigbee2mqtt/log zigbee2mqtt
+  ls -1t "$DEST"/zigbee2mqtt-*.tar.gz | tail -n +$((KEEP + 1)) | xargs -r rm --
+fi
 
 echo "$OUT.gz"

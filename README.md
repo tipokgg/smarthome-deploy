@@ -129,6 +129,35 @@ cd /opt/smarthome && sudo git pull
 sudo docker compose up -d --wait gotenberg
 ```
 
+## Zigbee (zigbee2mqtt и Mosquitto)
+
+Координатор — SMLIGHT SLZB-06P7U (CC2652P7, Z-Stack) на потолке кабинета 1 этажа, питание и сеть по PoE, `192.168.10.245`
+(закреплён на роутере, MAC 90:da:72:f2:32:a0). zigbee2mqtt
+ходит к нему по TCP (`tcp://<координатор>:6638`) и публикует устройства в Mosquitto (`zigbee2mqtt/…`), бэкенд слушает
+брокер (`ZIGBEE_MQTT_URL`). Брокер наружу не открыт и без паролей. Веб-интерфейс zigbee2mqtt (сопряжение, карта сети) —
+`http://<сервер>:8099`, токен — `ZIGBEE2MQTT_FRONTEND_TOKEN`. Оба сервиса — в профиле `zigbee`: без
+`COMPOSE_PROFILES=zigbee` в `.env` они не запускаются. Версии закреплены (`ZIGBEE2MQTT_IMAGE`, `MOSQUITTO_IMAGE`),
+`scripts/update.sh` их не обновляет.
+
+Настройки zigbee2mqtt — шаблон `zigbee2mqtt/configuration.yaml`; `setup.sh` кладёт его в `data/zigbee2mqtt/`, только
+если там файла ещё нет. При первом запуске zigbee2mqtt создаёт ключ сети и PAN ID и пишет их в этот файл. Без
+`data/zigbee2mqtt` все устройства придётся сопрягать заново, поэтому ночная копия (`scripts/backup.sh nightly`) кладёт
+его архивом рядом с базой. Канал (25) выбирается один раз, до первого запуска: смена потом — переподключение устройств.
+
+Координатор (веб-интерфейс `http://<координатор>/`): адрес закрепить на роутере, обновить обе прошивки (ядро и Zigbee),
+режим — Zigbee Coordinator, подключение — Ethernet, Wi-Fi модуля выключить, пароль на веб-интерфейс.
+
+Подключить на уже работающем сервере:
+
+```bash
+cd /opt/smarthome && sudo git pull && sudo ./setup.sh
+# в .env: COMPOSE_PROFILES=zigbee, ZIGBEE_ADAPTER_HOST, ZIGBEE_MQTT_URL, ZIGBEE2MQTT_FRONTEND_TOKEN
+sudo docker compose up -d --wait
+```
+
+`up -d` пересоздаст и бэкенд (у него новая переменная). Проверка: `sudo docker compose logs zigbee2mqtt` — «Zigbee2MQTT
+started», в логах бэкенда — «Connected to MQTT broker».
+
 ## Каждый день
 
 | Что | Команда (в `/opt/smarthome`) |
@@ -138,6 +167,8 @@ sudo docker compose up -d --wait gotenberg
 | логи моста к телевизорам | `sudo docker compose logs -f --tail 200 tv-bridge` |
 | логи go2rtc (камеры) | `sudo docker compose logs -f --tail 200 go2rtc` |
 | логи Gotenberg (PDF газеты) | `sudo docker compose logs -f --tail 200 gotenberg` |
+| логи zigbee2mqtt | `sudo docker compose logs -f --tail 200 zigbee2mqtt` |
+| что идёт по MQTT | `sudo docker compose exec mosquitto mosquitto_sub -v -t 'zigbee2mqtt/#'` |
 | журнал обновлений | `journalctl -u smarthome-update -n 50` |
 | запустить проверку обновлений сейчас | `sudo systemctl start smarthome-update` |
 | копия базы сейчас | `sudo scripts/backup.sh nightly` |
@@ -164,4 +195,4 @@ sudo docker compose up -d --wait backend
 
 - Копии базы за пределами сервера (restic в облако или на NAS): сейчас они лежат только на нём самом.
 - Удалённый доступ через Tailscale, без проброса портов: у бэкенда нет авторизации, а он управляет котлом.
-- Zigbee2MQTT, Mosquitto и Postgres добавить сервисами в `compose.yml`, USB-стик пробросить через `devices: /dev/serial/by-id/...`.
+- Postgres сервисом в `compose.yml`.
