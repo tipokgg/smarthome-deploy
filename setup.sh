@@ -11,6 +11,10 @@ install -d -o 1000 -g 1000 data data/tv-bridge data/zigbee2mqtt backups backups/
 install -d -o 1883 -g 1883 data/mosquitto
 # настройки zigbee2mqtt - только если их ещё нет: он переписывает файл сам, там ключ сети
 [[ -f data/zigbee2mqtt/configuration.yaml ]] || install -m 600 -o 1000 -g 1000 zigbee2mqtt/configuration.yaml data/zigbee2mqtt/
+# свои описания устройств - всегда из репозитория (подхватываются при перезапуске zigbee2mqtt); папку zigbee2mqtt
+# пишет сам (симлинк node_modules, временные копии), поэтому копия, а не монтирование только для чтения
+install -d -o 1000 -g 1000 data/zigbee2mqtt/external_converters
+install -m 644 -o 1000 -g 1000 zigbee2mqtt/external_converters/*.mjs data/zigbee2mqtt/external_converters/
 install -d -m 700 -o 1000 -g 1000 config
 install -d -m 700 state
 [[ -f .env ]] || { cp .env.example .env; chmod 600 .env; echo "создан .env из шаблона"; }
