@@ -26,13 +26,15 @@ install -d -m 700 -o 1000 -g 1000 "$STAGE"
 # от имени бэкенда (uid 1000): служебные файлы sqlite3 рядом с базой бэкенд сможет писать
 setpriv --reuid=1000 --regid=1000 --clear-groups sqlite3 -bail data/smarthome.db ".backup '$STAGE/smarthome.db'"
 
-paths=("$STAGE/smarthome.db")
+# пути - абсолютные: в снимке они так и лежат (/opt/smarthome/..., /root/...), относительные restic кладёт в корень
+paths=("$PWD/$STAGE/smarthome.db")
 for p in data/zigbee2mqtt data/tv-bridge config .env secrets \
   /var/lib/tailscale/tailscaled.state /root/.docker/config.json /root/.ssh /etc/ssh/sshd_config.d \
   /home/tipok/.ssh/authorized_keys /etc/netplan; do
+  [[ "$p" == /* ]] || p="$PWD/$p"
   [[ -e "$p" ]] && paths+=("$p")
 done
-restic backup --host smarthome --tag nightly --exclude data/zigbee2mqtt/log "${paths[@]}"
+restic backup --host smarthome --tag nightly --exclude "$PWD/data/zigbee2mqtt/log" "${paths[@]}"
 restic forget --host smarthome --keep-daily 7 --keep-weekly 4 --keep-monthly 12 --prune
 # раз в месяц - прочитать часть данных из хранилища и сверить
 if [[ $(date +%d) == 01 ]]; then
