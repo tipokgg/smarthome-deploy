@@ -1,5 +1,7 @@
 .env
 config/application.yml
+# ключи VPN, секреты ESPHome, выгрузки настроек роутеров - только на сервере и в копиях вне дома
+secrets/
 data/
 backups/
 state/

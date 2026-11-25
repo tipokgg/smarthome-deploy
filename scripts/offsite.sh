@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Копия вне дома (таймер smarthome-offsite.timer, 04:00): restic в Yandex Object Storage, репозиторий <бакет>/smarthome.
 # База - свежая согласованная копия (.backup) без gzip: restic сжимает сам и не грузит повторно неизменённые блоки.
-# Плюс то, без чего восстановление долгое: zigbee2mqtt (ключ сети и устройства), сертификат tv-bridge, секреты.
+# Плюс то, без чего восстановление долгое: zigbee2mqtt (ключ сети и устройства), сертификат tv-bridge, секреты
+# (config/, .env, secrets/ - ключи VPN, секреты ESPHome, выгрузки настроек роутеров) и мелочи самого сервера: Tailscale,
+# вход в GHCR, SSH. Портал СНТ (/opt/snt) копирует себя сам.
 # Ключи доступа и пароль репозитория - в /etc/restic (не в git), см. README «Копии вне дома».
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -22,7 +24,9 @@ install -d -m 700 -o 1000 -g 1000 "$STAGE"
 setpriv --reuid=1000 --regid=1000 --clear-groups sqlite3 -bail data/smarthome.db ".backup '$STAGE/smarthome.db'"
 
 paths=("$STAGE/smarthome.db")
-for p in data/zigbee2mqtt data/tv-bridge config .env; do
+for p in data/zigbee2mqtt data/tv-bridge config .env secrets \
+  /var/lib/tailscale/tailscaled.state /root/.docker/config.json /root/.ssh /etc/ssh/sshd_config.d \
+  /home/tipok/.ssh/authorized_keys /etc/netplan; do
   [[ -e "$p" ]] && paths+=("$p")
 done
 restic backup --host smarthome --tag nightly --exclude data/zigbee2mqtt/log "${paths[@]}"

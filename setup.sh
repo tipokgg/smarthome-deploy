@@ -16,7 +16,7 @@ install -d -o 1883 -g 1883 data/mosquitto
 install -d -o 1000 -g 1000 data/zigbee2mqtt/external_converters
 install -m 644 -o 1000 -g 1000 zigbee2mqtt/external_converters/*.mjs data/zigbee2mqtt/external_converters/
 install -d -m 700 -o 1000 -g 1000 config
-install -d -m 700 state
+install -d -m 700 state secrets
 [[ -f .env ]] || { cp .env.example .env; chmod 600 .env; echo "создан .env из шаблона"; }
 [[ -f config/application.yml ]] || echo "нужно положить секреты бэкенда в config/application.yml"
 
