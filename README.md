@@ -172,6 +172,7 @@ started», в логах бэкенда — «Connected to MQTT broker».
 | журнал обновлений | `journalctl -u smarthome-update -n 50` |
 | запустить проверку обновлений сейчас | `sudo systemctl start smarthome-update` |
 | копия базы сейчас | `sudo scripts/backup.sh nightly` |
+| копия вне дома сейчас / журнал | `sudo systemctl start smarthome-offsite` / `journalctl -u smarthome-offsite -n 50` |
 | Swagger | `http://<сервер>/swagger-ui.html` |
 
 **Ручной откат.** Поставить в `.env` `AUTO_UPDATE=0` и записать в `BACKEND_IMAGE` нужную версию, например
@@ -191,8 +192,51 @@ sudo docker compose up -d --wait backend
 **Обновить сам этот репозиторий** (compose, скрипты): `sudo git pull`, затем `sudo docker compose up -d --wait`.
 Если менялись юниты systemd, ещё `sudo ./setup.sh`.
 
+## Копии вне дома
+
+`scripts/offsite.sh` (таймер `smarthome-offsite.timer`, 04:00): restic в Yandex Object Storage, репозиторий
+`<бакет>/smarthome`. В копии — свежая согласованная копия базы (`.backup`, без gzip: restic сжимает сам и не грузит
+повторно неизменённые блоки), `data/zigbee2mqtt` (без логов), `data/tv-bridge`, `config/` и `.env`. restic шифрует всё
+до отправки. Хранится 7 ежедневных, 4 еженедельных и 12 ежемесячных копий; 1-го числа `restic check` читает 10% данных
+из хранилища и сверяет. Сбой — в Telegram.
+
+Ключи и пароль — общие для умного дома и портала СНТ (`/opt/snt`), в `/etc/restic` (только root, не в git):
+
+```bash
+sudo apt install -y restic
+sudo install -d -m 700 /etc/restic
+sudo sh -c 'umask 077; openssl rand -base64 33 > /etc/restic/password'   # сохранить ещё и в менеджер паролей!
+sudo install -m 600 /dev/null /etc/restic/offsite.env && sudo nano /etc/restic/offsite.env
+```
+
+```
+RESTIC_BUCKET=<имя бакета>
+AWS_ACCESS_KEY_ID=<идентификатор статического ключа сервисного аккаунта>
+AWS_SECRET_ACCESS_KEY=<секретный ключ>
+AWS_DEFAULT_REGION=ru-central1
+RESTIC_PASSWORD_FILE=/etc/restic/password
+```
+
+Без пароля репозитория копии не расшифровать: если сервер погибнет вместе с `/etc/restic/password`, копии бесполезны.
+Бакет — класс «Стандартное» (первый 1 ГБ в месяц бесплатно), без публичного доступа и без версионирования;
+сервисный аккаунт — с ролью `storage.editor` только на этот бакет.
+
+Включить: `sudo ./setup.sh && sudo systemctl enable --now smarthome-offsite.timer`, первая копия — `sudo systemctl
+start smarthome-offsite` (`journalctl -u smarthome-offsite`).
+
+Восстановление (на любом сервере с restic и тем же `/etc/restic`):
+
+```bash
+set -a; source /etc/restic/offsite.env; set +a
+export RESTIC_REPOSITORY=s3:https://storage.yandexcloud.net/$RESTIC_BUCKET/smarthome
+restic snapshots
+restic restore latest --target /tmp/smarthome-restore   # файлы - по исходным путям внутри /tmp/smarthome-restore
+```
+
+Затем при остановленном бэкенде — `state/offsite/smarthome.db` из копии в `data/smarthome.db`, `data/zigbee2mqtt`,
+`data/tv-bridge`, `config/`, `.env` — на место, владелец — uid 1000.
+
 ## Что дальше
 
-- Копии базы за пределами сервера (restic в облако или на NAS): сейчас они лежат только на нём самом.
 - Удалённый доступ через Tailscale, без проброса портов: у бэкенда нет авторизации, а он управляет котлом.
 - Postgres сервисом в `compose.yml`.

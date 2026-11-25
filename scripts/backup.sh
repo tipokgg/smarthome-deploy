@@ -3,6 +3,8 @@
 # Работающий бэкенд не мешает: .backup делает согласованную копию.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# в копиях секреты и история дома: только владельцу
+umask 077
 
 KIND=${1:-nightly}
 case "$KIND" in
@@ -15,7 +17,7 @@ DB=data/smarthome.db
 [[ -f "$DB" ]] || { echo "нет базы $DB" >&2; exit 1; }
 
 DEST=backups/$KIND
-install -d -o 1000 -g 1000 "$DEST"
+install -d -m 700 -o 1000 -g 1000 "$DEST"
 OUT="$DEST/smarthome-$(date +%Y%m%d-%H%M%S).db"
 # от имени бэкенда (uid 1000): если sqlite3 создаст служебный файл рядом с базой, бэкенд сможет его писать
 setpriv --reuid=1000 --regid=1000 --clear-groups sqlite3 -bail "$DB" ".backup '$OUT'"

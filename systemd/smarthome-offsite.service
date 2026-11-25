@@ -1,0 +1,9 @@
+[Unit]
+Description=smarthome: копия вне дома (restic, Yandex Object Storage)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/smarthome
+ExecStart=/opt/smarthome/scripts/offsite.sh
