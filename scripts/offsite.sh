@@ -18,6 +18,8 @@ set +a
 export RESTIC_CACHE_DIR=${RESTIC_CACHE_DIR:-/var/cache/restic}
 export RESTIC_REPOSITORY="s3:https://storage.yandexcloud.net/${RESTIC_BUCKET}/smarthome"
 restic cat config > /dev/null 2>&1 || restic init
+# блокировки, оставшиеся от оборванных запусков (живые restic не трогает)
+restic unlock
 
 # каталог бэкенда (uid 1000): sqlite3 работает от его имени, а в state/ (root, 700) ему не войти
 STAGE=backups/offsite
