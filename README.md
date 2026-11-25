@@ -239,7 +239,7 @@ restic snapshots
 restic restore latest --target /tmp/smarthome-restore   # файлы - по исходным путям внутри /tmp/smarthome-restore
 ```
 
-Затем при остановленном бэкенде — `state/offsite/smarthome.db` из копии в `data/smarthome.db`, `data/zigbee2mqtt`,
+Затем при остановленном бэкенде — `backups/offsite/smarthome.db` из копии в `data/smarthome.db`, `data/zigbee2mqtt`,
 `data/tv-bridge`, `config/`, `.env` — на место, владелец — uid 1000.
 
 ## Что дальше
