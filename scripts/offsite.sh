@@ -19,7 +19,8 @@ export RESTIC_CACHE_DIR=${RESTIC_CACHE_DIR:-/var/cache/restic}
 export RESTIC_REPOSITORY="s3:https://storage.yandexcloud.net/${RESTIC_BUCKET}/smarthome"
 restic cat config > /dev/null 2>&1 || restic init
 
-STAGE=state/offsite
+# каталог бэкенда (uid 1000): sqlite3 работает от его имени, а в state/ (root, 700) ему не войти
+STAGE=backups/offsite
 rm -rf "$STAGE"
 install -d -m 700 -o 1000 -g 1000 "$STAGE"
 # от имени бэкенда (uid 1000): служебные файлы sqlite3 рядом с базой бэкенд сможет писать
