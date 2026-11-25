@@ -14,6 +14,8 @@ set -a
 # shellcheck source=/dev/null
 source /etc/restic/offsite.env
 set +a
+# под systemd нет $HOME: без кэша restic каждый раз заново качает индекс из хранилища
+export RESTIC_CACHE_DIR=${RESTIC_CACHE_DIR:-/var/cache/restic}
 export RESTIC_REPOSITORY="s3:https://storage.yandexcloud.net/${RESTIC_BUCKET}/smarthome"
 restic cat config > /dev/null 2>&1 || restic init
 
